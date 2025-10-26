@@ -2,15 +2,16 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("MetaNodeStake", function () {
+describe("MetaNodeStake - stake test", function () {
   let MetaNodeStake, metaNodeStake;
   let owner, alice, bob;
+  const LOCK_BLOCKS = 10; // 锁仓10个区块（测试用）
 
   // Deploy a fresh contract before each test
   beforeEach(async function () {
     [owner, alice, bob] = await ethers.getSigners();
     MetaNodeStake = await ethers.getContractFactory("MetaNodeStake");
-    metaNodeStake = await MetaNodeStake.deploy();
+    metaNodeStake = await MetaNodeStake.deploy(LOCK_BLOCKS);
     await metaNodeStake.waitForDeployment();
   });
 
@@ -29,12 +30,12 @@ describe("MetaNodeStake", function () {
       .to.emit(metaNodeStake, "Staked")
       .withArgs(alice.address, stakeAmount);
 
-    const userStake = await metaNodeStake.userStake(alice.address);
+    const userStake = await metaNodeStake.users(alice.address);
     const total = await metaNodeStake.totalStaked();
     // 获取合约余额以验证资金是否正确存入
     const contractBalance = await ethers.provider.getBalance(metaNodeStake.getAddress());
 
-    expect(userStake).to.equal(stakeAmount);
+    expect(userStake.staked).to.equal(stakeAmount);
     expect(total).to.equal(stakeAmount);
     expect(contractBalance).to.equal(stakeAmount);
   });
@@ -47,10 +48,10 @@ describe("MetaNodeStake", function () {
     await metaNodeStake.connect(alice).stake({ value: a });
     await metaNodeStake.connect(alice).stake({ value: b });
 
-    const userStake = await metaNodeStake.userStake(alice.address);
+    const user = await metaNodeStake.users(alice.address);
     const total = await metaNodeStake.totalStaked();
 
-    expect(userStake).to.equal(a + b);
+    expect(user.staked).to.equal(a + b);
     expect(total).to.equal(a + b);
   });
 
@@ -62,12 +63,12 @@ describe("MetaNodeStake", function () {
     await metaNodeStake.connect(alice).stake({ value: a });
     await metaNodeStake.connect(bob).stake({ value: b });
 
-    const aliceStake = await metaNodeStake.userStake(alice.address);
-    const bobStake = await metaNodeStake.userStake(bob.address);
+    const aliceStake = await metaNodeStake.users(alice.address);
+    const bobStake = await metaNodeStake.users(bob.address);
     const total = await metaNodeStake.totalStaked();
 
-    expect(aliceStake).to.equal(a);
-    expect(bobStake).to.equal(b);
+    expect(aliceStake.staked).to.equal(a);
+    expect(bobStake.staked).to.equal(b);
     expect(total).to.equal(a + b);
   });
 });
