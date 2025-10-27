@@ -26,7 +26,7 @@ contract MetaNodeStake is Ownable2Step, Pausable {
     // *** 状态变量
     Pool[] public pools;  // 质押池列表(按照ID索引)
     // 资产→池ID映射：快速查询某资产对应的池ID（避免遍历数组）
-    mapping(address => uint256) public totalToPoolId;
+    mapping(address => uint256) public tokenToPoolId;
     // 池ID→用户地址→用户状态映射
     mapping(uint256 => mapping(address => User)) public users;
 
@@ -46,7 +46,7 @@ contract MetaNodeStake is Ownable2Step, Pausable {
     // 管理员函数：添加新ERC20质押池
     function addPool(address _token, uint256 _lockBlocks) external onlyOwner {
         require(_token != address(0), "Token address cannot be zero");  // ETH池请使用专门函数
-        require(totalToPoolId[_token] == 0, "Pool for this token already exists"); // 防止重复添加
+        require(tokenToPoolId[_token] == 0, "Pool for this token already exists"); // 防止重复添加
         require(_lockBlocks > 0, "Lock blocks must be greater than zero");  // 默认设置的锁仓区块数必须大于0
         _addPool(_token, _lockBlocks);
     }
@@ -59,8 +59,13 @@ contract MetaNodeStake is Ownable2Step, Pausable {
             totalStaked: 0,
             lockBlocks: _lockBlocks
         }));
-        totalToPoolId[_token] = poolId + 1; // 池ID从1开始，0表示不存在
+        tokenToPoolId[_token] = poolId + 1; // 池ID从1开始，0表示不存在
         emit PoolAdded(_token, poolId, _lockBlocks);
+    }
+
+    // 在合约中新增（管理员/公开均可，根据权限需求）
+    function getPoolCount() external view returns (uint256) {
+        return pools.length;
     }
 
     // 管理员函数：暂停合约（紧急情况下使用）
