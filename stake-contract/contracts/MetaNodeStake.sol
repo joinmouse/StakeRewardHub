@@ -16,7 +16,7 @@ contract MetaNodeStake is Ownable2Step, Pausable {
         uint256 totalStaked;  // 该池子中的总质押量
         uint256 lockBlocks;   // 该池子的锁仓区块数
         // 奖励相关字段
-        uint256 rewardToken;  // 奖励代币地址(一般是代币ERC20)
+        address rewardToken;  // 奖励代币地址(一般是代币ERC20)
         uint256 rewardRate;   // 每区块奖励率
     }
     // ***用户状态结构体：记录单个用户的质押、锁仓信息
@@ -147,6 +147,7 @@ contract MetaNodeStake is Ownable2Step, Pausable {
 
     // 3、提取函数, 用户调用此函数提取已解锁的资金(暂停时不允许提取)
     function withdraw(uint256 _poolId) external whenNotPaused {
+        require(rewardEnabled, "Withdrawals are paused"); // 提取功能受奖励发放开关控制
         require(_poolId < pools.length, "Invalid pool ID"); // 验证池ID有效性
         Pool storage pool = pools[_poolId];
         User storage user = users[_poolId][msg.sender];
@@ -187,6 +188,23 @@ contract MetaNodeStake is Ownable2Step, Pausable {
         uint256 blocksElapsed = block.number - user.lastRewardBlock;
         uint256 reward = (blocksElapsed * pool.rewardRate * user.staked) / 10000;
         return reward;
+    }
+
+    // _updateRewards : 内部函数，更新用户的累计奖励
+    function _updateRewards(uint256 _poolId, address _user) internal {
+        User storage user = users[_poolId][_user];
+        // 首次质押时初始化奖励计算的基准区块
+        if (user.lastRewardBlock == 0) {
+            user.lastRewardBlock = block.number;
+            return;
+        }
+        // 计算并累加奖励
+        uint256 newRewards = _calculateRewards(_poolId, _user);
+        if (newRewards > 0) {
+            user.accruedRewards += newRewards;
+        }
+        // 更新最后一次计算奖励的区块号
+        user.lastRewardBlock = block.number;
     }
 
     // claimRewards: 用户主动领取累计奖励
