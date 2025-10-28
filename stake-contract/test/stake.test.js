@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("MetaNodeStake v0.5.1 - 多池质押测试", function () {
+describe("MetaNodeStake v0.5.0 - stake test", function () {
   let MetaNodeStake, metaNodeStake;
   let ERC20Mock, erc20Token; // 新增：测试用ERC20代币
   let owner, alice, bob;

@@ -1,57 +1,121 @@
-// const { expect } = require("chai");
-// const { ethers } = require("hardhat");
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
-// describe("MetaNodeStake - requestUnstake test", function () {
-//   let simpleStake;
-//   let owner, user1;
-//   const LOCK_BLOCKS = 10; // 锁仓10个区块（测试用）
+describe("MetaNodeStake v0.5.0 - requestUnstake test", function () {
+  let metaNodeStake;
+  let erc20Token; // ERC20测试代币
+  let owner, user1;
+  const ETH_LOCK_BLOCKS = 10; // ETH池锁仓期
+  const ERC20_LOCK_BLOCKS = 20; // ERC20池锁仓期
+  let ethPoolId = 0; // 默认ETH池ID
+  let erc20PoolId; // ERC20池ID
 
-//   beforeEach(async function () {
-//     [owner, user1] = await ethers.getSigners();
-//     // 部署合约，设置锁仓10个区块
-//     const SimpleStake = await ethers.getContractFactory("MetaNodeStake");
-//     simpleStake = await SimpleStake.deploy(LOCK_BLOCKS);
-//     await simpleStake.waitForDeployment();
-    
-//     // 提前让用户质押10 ETH，为赎回做准备
-//     await simpleStake.connect(user1).stake({ value: ethers.parseEther("10.0") });
-//     const user = await simpleStake.users(user1.address);
-//   });
+  beforeEach(async function () {
+    [owner, user1] = await ethers.getSigners();
 
-//   it("should correctly convert staked amount to locked amount and record unlock time", async function () {
-//     // 1. 用户申请赎回5 ETH
-//     const unstakeAmount = ethers.parseEther("5.0");
-//     const tx = await simpleStake.connect(user1).requestUnstake(unstakeAmount);
-//     // 2. 获取当前区块号（作为赎回申请的起始区块）
-//     const currentBlock = await ethers.provider.getBlockNumber();
-//     // 3. 检查用户状态变化
-//     const user = await simpleStake.users(user1.address);
-//     // 质押量应减少5 ETH（10 - 5 = 5）
-//     expect(user.staked).to.equal(ethers.parseEther("5.0"));
-//     // 锁仓量应增加5 ETH
-//     expect(user.locked).to.equal(unstakeAmount);
-//     // 解锁时间应为：当前区块 + 锁仓区块数（10）
-//     expect(user.unlockAt).to.equal(currentBlock + LOCK_BLOCKS);
+    // 1. 部署ERC20测试代币并给user1转账
+    const ERC20Mock = await ethers.getContractFactory("MetaNodeToken");
+    erc20Token = await ERC20Mock.deploy();
+    await erc20Token.waitForDeployment();
+    const erc20Address = await erc20Token.getAddress();
+    await erc20Token.connect(owner).transfer(user1.address, ethers.parseEther("100")); // 转100枚ERC20给user1
 
-//     // 4. 检查全局总质押量（减少5 ETH）
-//     expect(await simpleStake.totalStaked()).to.equal(ethers.parseEther("5.0"));
+    // 2. 部署质押合约（初始化ETH池）
+    const MetaNodeStake = await ethers.getContractFactory("MetaNodeStake");
+    metaNodeStake = await MetaNodeStake.deploy(ETH_LOCK_BLOCKS);
+    await metaNodeStake.waitForDeployment();
 
-//     // 5. 检查事件是否正确触发（包含解锁时间）
-//     await expect(tx)
-//       .to.emit(simpleStake, "RequestUnstaked")
-//       .withArgs(user1.address, unstakeAmount, currentBlock + LOCK_BLOCKS);
-//   });
+    // 3. 添加ERC20质押池并获取ID
+    await metaNodeStake.addPool(erc20Address, ERC20_LOCK_BLOCKS);
+    const poolCount = await metaNodeStake.getPoolCount();
+    erc20PoolId = Number(poolCount) - 1;
 
-//   it("should reject requests to unstake more than staked amount", async function () {
-//     // 用户质押了10 ETH，尝试赎回15 ETH（超额）
-//     await expect(
-//       simpleStake.connect(user1).requestUnstake(ethers.parseEther("15.0"))
-//     ).to.be.revertedWith("Unstake: not enough");
-//   });
+    // 4. user1质押ETH和ERC20（为赎回做准备）
+    // 质押10 ETH到ETH池
+    await metaNodeStake.connect(user1).stake(ethPoolId, ethers.parseEther("10.0"), { value: ethers.parseEther("10.0") });
+    // 授权并质押50 ERC20到ERC20池
+    await erc20Token.connect(user1).approve(await metaNodeStake.getAddress(), ethers.parseEther("50"));
+    await metaNodeStake.connect(user1).stake(erc20PoolId, ethers.parseEther("50"));
+  });
 
-//   it("should reject requests to unstake zero amount", async function () {
-//     await expect(
-//       simpleStake.connect(user1).requestUnstake(0)
-//     ).to.be.revertedWith("Unstake: amount must be > 0");
-//   });
-// });
+  describe("ETH池赎回申请", function () {
+    it("应正确转换质押量为锁仓量并记录解锁时间", async function () {
+      const unstakeAmount = ethers.parseEther("5.0");
+      const tx = await metaNodeStake.connect(user1).requestUnstake(ethPoolId, unstakeAmount);
+
+      // 获取当前区块号
+      const currentBlock = await ethers.provider.getBlockNumber();
+      // 查询用户在ETH池的状态
+      const user = await metaNodeStake.users(ethPoolId, user1.address);
+      // 查询ETH池总质押量
+      const ethPool = await metaNodeStake.pools(ethPoolId);
+
+      // 校验用户状态：质押量减少，锁仓量增加
+      expect(user.staked).to.equal(ethers.parseEther("5.0")); // 10 - 5 = 5
+      expect(user.locked).to.equal(unstakeAmount);
+      // 校验解锁时间：当前区块 + ETH池锁仓期
+      expect(user.unlockAt).to.equal(BigInt(currentBlock + ETH_LOCK_BLOCKS));
+      // 校验池总质押量减少
+      expect(ethPool.totalStaked).to.equal(ethers.parseEther("5.0"));
+
+      // 校验事件（新增poolId参数）
+      await expect(tx)
+        .to.emit(metaNodeStake, "RequestUnstaked")
+        .withArgs(user1.address, ethPoolId, unstakeAmount, currentBlock + ETH_LOCK_BLOCKS);
+    });
+
+    it("应拒绝赎回量超过质押量的请求", async function () {
+      // 质押了10 ETH，尝试赎回15 ETH
+      await expect(
+        metaNodeStake.connect(user1).requestUnstake(ethPoolId, ethers.parseEther("15.0"))
+      ).to.be.revertedWith("Unstake: not enough");
+    });
+
+    it("应拒绝赎回0金额的请求", async function () {
+      await expect(
+        metaNodeStake.connect(user1).requestUnstake(ethPoolId, 0)
+      ).to.be.revertedWith("Unstake: amount must be > 0");
+    });
+  });
+
+  describe("ERC20池赎回申请", function () {
+    it("应正确转换质押量为锁仓量并记录解锁时间", async function () {
+      const unstakeAmount = ethers.parseEther("20.0");
+      const tx = await metaNodeStake.connect(user1).requestUnstake(erc20PoolId, unstakeAmount);
+
+      const currentBlock = await ethers.provider.getBlockNumber();
+      const user = await metaNodeStake.users(erc20PoolId, user1.address);
+      const erc20Pool = await metaNodeStake.pools(erc20PoolId);
+
+      // 校验用户状态：50 - 20 = 30
+      expect(user.staked).to.equal(ethers.parseEther("30.0"));
+      expect(user.locked).to.equal(unstakeAmount);
+      // 解锁时间：当前区块 + ERC20池锁仓期
+      expect(user.unlockAt).to.equal(BigInt(currentBlock + ERC20_LOCK_BLOCKS));
+      // 校验池总质押量减少
+      expect(erc20Pool.totalStaked).to.equal(ethers.parseEther("30.0"));
+
+      // 校验事件
+      await expect(tx)
+        .to.emit(metaNodeStake, "RequestUnstaked")
+        .withArgs(user1.address, erc20PoolId, unstakeAmount, currentBlock + ERC20_LOCK_BLOCKS);
+    });
+
+    it("多池赎回数据应隔离（ETH与ERC20互不影响）", async function () {
+      // 从ETH池赎回5 ETH
+      await metaNodeStake.connect(user1).requestUnstake(ethPoolId, ethers.parseEther("5.0"));
+      // 从ERC20池赎回20 ERC20
+      await metaNodeStake.connect(user1).requestUnstake(erc20PoolId, ethers.parseEther("20.0"));
+
+      // 校验ETH池用户状态（不受ERC20赎回影响）
+      const ethUser = await metaNodeStake.users(ethPoolId, user1.address);
+      expect(ethUser.staked).to.equal(ethers.parseEther("5.0"));
+      expect(ethUser.locked).to.equal(ethers.parseEther("5.0"));
+
+      // 校验ERC20池用户状态（不受ETH赎回影响）
+      const erc20User = await metaNodeStake.users(erc20PoolId, user1.address);
+      expect(erc20User.staked).to.equal(ethers.parseEther("30.0"));
+      expect(erc20User.locked).to.equal(ethers.parseEther("20.0"));
+    });
+  });
+});
