@@ -15,12 +15,18 @@ contract MetaNodeStake is Ownable2Step, Pausable {
         address token;        // 质押的代币地址（ETH为address(0)）
         uint256 totalStaked;  // 该池子中的总质押量
         uint256 lockBlocks;   // 该池子的锁仓区块数
+        // 奖励相关字段
+        uint256 rewardToken;  // 奖励代币地址(一般是代币ERC20)
+        uint256 rewardRate;   // 每区块奖励率
     }
     // ***用户状态结构体：记录单个用户的质押、锁仓信息
     struct User {
         uint256 staked;    // 当前质押量
         uint256 locked;    // 锁仓是金额
         uint256 unlockAt;  // 锁仓结束的区块号（用区块数换算的锁仓时间, 来标记什么时候能提取）
+        // 奖励记录字段
+        uint256 lastRewardBlock;  // 上次计算奖励的区块号
+        uint256 accruedRewards;   // 累计未提取的奖励金额
     }
 
     // *** 状态变量
@@ -29,41 +35,58 @@ contract MetaNodeStake is Ownable2Step, Pausable {
     mapping(address => uint256) public tokenToPoolId;
     // 池ID→用户地址→用户状态映射
     mapping(uint256 => mapping(address => User)) public users;
+    bool public rewardEnabled = false; // 奖励发放开关(管理员可紧急暂停)
 
     // ***事件
     event Staked(address indexed user, uint256 poolId, uint256 amount);  // 质押事件
     event RequestUnstaked(address indexed user, uint256 poolId, uint256 amount, uint256 unlockAt); // 赎回申请事件
     event Withdrawn(address indexed user, uint256 poolId, uint256 amount); // 提取事件
-    event PoolAdded(address indexed token, uint256 poolId, uint256 lockBlocks); // 新增池子事件
+    event PoolAdded(address indexed token, uint256 poolId, uint256 lockBlocks, address rewardToken, uint256 rewardRate); // 新增池子事件
+    event RewardClaimed(address indexed user, uint256 indexed poolId, uint256 amount); // 奖励领取事件
 
-    // 部署时设置锁仓区块数，确保规则固定
-    constructor(uint256 _lockBlocks) Ownable(msg.sender){
-        require(_lockBlocks > 0, "Invalid lock blocks");
-        _addPool(address(0), _lockBlocks);  // 添加ETH质押池
+    // 部署时设置锁仓区块数, eth奖励代币地址和奖励率
+    constructor(uint256 _ethLockBlocks, address _ethRewardToken, uint256 _ethRewardRate) Ownable(msg.sender){
+        require(_ethLockBlocks > 0, "Invalid lock blocks");
+        require(_ethRewardToken != address(0), "Invalid reward token"); // 校验奖励代币
+        require(_ethRewardRate > 0, "Invalid reward rate");             // 校验奖励率
+        _addPool(address(0), _ethLockBlocks, _ethRewardToken, _ethRewardRate);  // 添加ETH质押池
     }
 
     // ==================== 管理员功能：添加新池 ====================
     // 管理员函数：添加新ERC20质押池
-    function addPool(address _token, uint256 _lockBlocks) external onlyOwner {
+    function addPool(address _token, uint256 _lockBlocks, address _rewardToken, uint256 _rewardRate) external onlyOwner {
         require(_token != address(0), "Token address cannot be zero");  // ETH池请使用专门函数
         require(tokenToPoolId[_token] == 0, "Pool for this token already exists"); // 防止重复添加
         require(_lockBlocks > 0, "Lock blocks must be greater than zero");  // 默认设置的锁仓区块数必须大于0
-        _addPool(_token, _lockBlocks);
+        _addPool(_token, _lockBlocks, _rewardToken, _rewardRate);
+    }
+    // 管理员函数：启用或禁用奖励发放
+    function setRewardEnabled(bool _enabled) external onlyOwner {
+        rewardEnabled = _enabled;
+    }
+    // 管理员函数：为指定池子充值奖励代币(合约需要有足够的奖励代币余额)
+    function fundRewardToken(uint256 _poolId, uint256 _amount) external onlyOwner {
+        require(_poolId < pools.length, "Invalid pool ID");  // 校验池ID有效性
+        require(_amount > 0, "Amount must > 0");             // 充值数量必须大于0
+        Pool storage pool = pools[_poolId];
+        IERC20(pool.rewardToken).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     // 内部函数：添加池子逻辑
-    function _addPool(address _token, uint256 _lockBlocks) internal {
+    function _addPool(address _token, uint256 _lockBlocks, address _rewardToken, uint256 _rewardRate) internal {
         uint256 poolId = pools.length;
         pools.push(Pool({
             token: _token,
             totalStaked: 0,
-            lockBlocks: _lockBlocks
+            lockBlocks: _lockBlocks,
+            rewardToken: _rewardToken,
+            rewardRate: _rewardRate
         }));
         tokenToPoolId[_token] = poolId + 1; // 池ID从1开始，0表示不存在
-        emit PoolAdded(_token, poolId, _lockBlocks);
+        emit PoolAdded(_token, poolId, _lockBlocks, _rewardToken, _rewardRate);
     }
 
-    // 在合约中新增（管理员/公开均可，根据权限需求）
+    // 获取池子数量: 在合约中添加此函数以便前端或测试脚本调用
     function getPoolCount() external view returns (uint256) {
         return pools.length;
     }
@@ -91,6 +114,9 @@ contract MetaNodeStake is Ownable2Step, Pausable {
             IERC20(pool.token).safeTransferFrom(msg.sender, address(this), _amount);  // ERC20质押
         }
 
+        // 更新用户奖励
+        _updateRewards(_poolId, msg.sender);
+
         // 更新用户质押量和全局总质押量
         User storage user = users[_poolId][msg.sender];
         user.staked += _amount;
@@ -107,6 +133,9 @@ contract MetaNodeStake is Ownable2Step, Pausable {
 
         require(_amount > 0, "Unstake: amount must be > 0");  // 赎回数量必须大于0
         require(user.staked >= _amount, "Unstake: not enough"); // 确认用户有足够质押量
+
+        // 更新用户奖励
+        _updateRewards(_poolId, msg.sender);
 
         user.staked -= _amount;
         user.locked += _amount;
@@ -125,6 +154,9 @@ contract MetaNodeStake is Ownable2Step, Pausable {
         require(user.locked > 0, "Withdraw: no locked funds");  // 确认有锁仓资金
         require(block.number >= user.unlockAt, "Withdraw: funds are still locked");  // 确认锁仓时间已到
 
+        // 更新用户奖励
+        _updateRewards(_poolId, msg.sender);
+
         uint256 amount = user.locked;
         user.locked = 0;   // 清空锁仓资金
 
@@ -138,6 +170,45 @@ contract MetaNodeStake is Ownable2Step, Pausable {
         }
 
         emit Withdrawn(msg.sender, _poolId, amount);
+    }
+
+    // 奖励公式: 奖励 = (当前区块 - 上次奖励区块) * 奖励率 * 用户质押量 / 10000(精度万分之一)
+    function _calculateRewards(uint256 _poolId, address _user) internal view returns (uint256) {
+        if (!rewardEnabled) {
+            return 0; // 奖励发放被禁用
+        }
+        Pool storage pool = pools[_poolId];
+        User storage user = users[_poolId][_user];
+
+        if (user.staked == 0 || user.lastRewardBlock >= block.number) {
+            return 0; // 无质押或无新块，无奖励
+        }
+
+        uint256 blocksElapsed = block.number - user.lastRewardBlock;
+        uint256 reward = (blocksElapsed * pool.rewardRate * user.staked) / 10000;
+        return reward;
+    }
+
+    // claimRewards: 用户主动领取累计奖励
+    function claimRewards(uint256 _poolId) external whenNotPaused {
+        require(_poolId < pools.length, "Invalid pool ID");
+        Pool storage pool = pools[_poolId];
+        User storage user = users[_poolId][msg.sender];
+
+        _updateRewards(_poolId, msg.sender); // 先更新到当前区块的奖励
+        require(user.accruedRewards > 0, "No rewards to claim");
+
+        uint256 rewardAmount = user.accruedRewards;
+        user.accruedRewards = 0; // 清零避免重复领取
+
+        // 校验合约奖励代币余额
+        require(
+            IERC20(pool.rewardToken).balanceOf(address(this)) >= rewardAmount,
+            "Reward token insufficient"
+        );
+        IERC20(pool.rewardToken).safeTransfer(msg.sender, rewardAmount);
+
+        emit RewardClaimed(msg.sender, _poolId, rewardAmount);
     }
 
     // 允许合约接收ETH
