@@ -22,14 +22,14 @@ struct Pool {
 }
 
 struct User {
-    uint256 stAmount;        // 当前质押量
-    uint256 finishedMetaNode;// 已结算奖励
-    uint256 pendingMetaNode; // 待领取奖励
-    UnstakeRequest[] requests; // 赎回请求队列
+    uint256          stAmount;          // 当前质押量
+    uint256          finishedMetaNode;  // 已结算奖励
+    uint256          pendingMetaNode;   // 待领取奖励
+    UnstakeRequest[] requests;          // 赎回请求队列
 }
 struct UnstakeRequest {
-    uint256 amount;          // 赎回金额
-    uint256 unlockBlocks;    // 解锁区块号
+    uint256 amount;        // 赎回金额
+    uint256 unlockBlocks;  // 解锁区块号
 }
 
 contract MetaNodeStakeStorage {
