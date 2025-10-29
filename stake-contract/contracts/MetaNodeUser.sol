@@ -39,7 +39,7 @@ abstract contract MetaNodeUser is PausableUpgradeable, MetaNodeStakeStorage {
         require(_from <= _to, "invalid block");
         if (_from < startBlock) _from = startBlock;
         if (_to > endBlock) _to = endBlock;
-        require(_from <= _to, "end block must be greater than start block");
+        require(_from <= _to, "end > start");
         return MetaNodeMath.getMultiplier(_from, _to, MetaNodePerBlock);
     }
 
@@ -109,10 +109,10 @@ abstract contract MetaNodeUser is PausableUpgradeable, MetaNodeStakeStorage {
     // 批量ETH
     function depositETH() public payable whenNotPaused {
         Pool storage pool_ = pools[ETH_PID];
-        require(pool_.stTokenAddress == address(0), "invalid staking token address");
+        require(pool_.stTokenAddress == address(0), "invalid address");
 
         uint256 _amount = msg.value;
-        require(_amount >= pool_.minDepositAmount, "deposit amount is too small");
+        require(_amount >= pool_.minDepositAmount, "deposit small");
 
         _deposit(ETH_PID, _amount);
     }
@@ -121,7 +121,7 @@ abstract contract MetaNodeUser is PausableUpgradeable, MetaNodeStakeStorage {
     function deposit(uint256 _pid, uint256 _amount) public whenNotPaused checkPid(_pid) {
         require(_pid != ETH_PID, "use depositETH for ETH staking");
         Pool storage pool_ = pools[_pid];
-        require(_amount >= pool_.minDepositAmount, "deposit amount is too small");
+        require(_amount >= pool_.minDepositAmount, "deposit small");
 
         if (_amount > 0) {
             IERC20(pool_.stTokenAddress).safeTransferFrom(msg.sender, address(this), _amount);
@@ -135,8 +135,8 @@ abstract contract MetaNodeUser is PausableUpgradeable, MetaNodeStakeStorage {
         Pool storage pool_ = pools[_pid];
         User storage user_ = users[_pid][msg.sender];
 
-        require(user_.stAmount >= _amount, "Not enough staking balance");
-        require(_amount > 0, "amount must be > 0");
+        require(user_.stAmount >= _amount, "Not enough");
+        require(_amount > 0, "amount > 0");
 
         updatePool(_pid); // 更新奖励状态
 
@@ -175,7 +175,7 @@ abstract contract MetaNodeUser is PausableUpgradeable, MetaNodeStakeStorage {
             popNum++;
         }
 
-        require(pendingWithdraw > 0, "Withdraw: no locked funds");
+        require(pendingWithdraw > 0, "Withdraw: no locked");
 
         // 移除已提取的申请（保持队列顺序）
         for (uint256 i = 0; i < user_.requests.length - popNum; i++) {
