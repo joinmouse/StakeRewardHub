@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "../MetaNodeMath.sol"; // 引入你的库
 
-contract MetaNodeMathTester {
+contract MetaNodeMathTest {
     // 包装库的 safeETHTransfer 函数
     function testSafeETHTransfer(address to, uint256 amount) external payable {
         MetaNodeMath.safeETHTransfer(to, amount);

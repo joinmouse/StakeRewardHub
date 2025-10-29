@@ -10,7 +10,7 @@ describe("MetaNodeMath", function () {
     [owner, user] = await ethers.getSigners();
 
     // 部署测试合约
-    const Tester = await ethers.getContractFactory("MetaNodeMathTester");
+    const Tester = await ethers.getContractFactory("MetaNodeMathTest");
     tester = await Tester.deploy();
     await tester.waitForDeployment();
 
