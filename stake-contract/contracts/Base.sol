@@ -155,15 +155,6 @@ contract MetaNodeStake is
         startBlock = _startBlock;
         endBlock = _endBlock;
         MetaNodePerBlock = _MetaNodePerBlock;
-
-        // 初始化ETH池（第一个池固定为ETH池）
-        _addPool(
-            address(0),          // ETH地址
-            100,                 // 初始权重
-            _ethLockBlocks,      // 锁仓区块
-            _MetaNode,           // 奖励代币
-            _ethRewardRate       // 奖励率
-        );
     }
 
     // +++++++++ 实现UUPS升级授权

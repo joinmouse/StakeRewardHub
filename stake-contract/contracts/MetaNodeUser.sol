@@ -248,7 +248,7 @@ abstract contract MetaNodeUser is PausableUpgradeable, MetaNodeStakeStorage {
     }
 
     // 批量更新所有池奖励函数
-    function massUpdatePools() public {
+    function massUpdatePools() public virtual {
         for (uint256 pid = 0; pid < pools.length; pid++) {
             updatePool(pid);
         }
