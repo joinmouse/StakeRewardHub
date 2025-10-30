@@ -1,6 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("hardhat-contract-sizer");
 require("@openzeppelin/hardhat-upgrades"); 
+require("dotenv").config();  // 加载环境变量(.env文件)
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -20,4 +21,17 @@ module.exports = {
     runOnCompile: true,
     strict: true,
   },
+  networks: {
+    // 本地开发网络(无需私钥,Hardhat自动生成账户)
+    localhost: {
+      url: "http://127.0.0.1:8545",
+    },
+    sepolia: {
+      url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+      accounts: [process.env.PRIVATE_KEY], // 从环境变量加载私钥
+    }
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY, // 从环境变量加载Etherscan API Key
+  }
 };

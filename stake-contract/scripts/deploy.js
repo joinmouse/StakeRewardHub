@@ -78,7 +78,7 @@ async function main() {
   // --------------------------
   // 5. 验证合约（测试网支持）
   // --------------------------
-  if (process.env.ETHERSCAN_API_KEY && hre.network.name !== "hardhat") {
+  if (process.env.ETHERSCAN_API_KEY && hre.network.name !== "localhost") {
     console.log("\n4. 等待区块确认后验证合约...");
     await new Promise(resolve => setTimeout(resolve, 60000)); // 等待1分钟
 
