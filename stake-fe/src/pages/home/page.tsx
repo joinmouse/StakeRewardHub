@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import LoadingButton from '@mui/lab/LoadingButton';
+import ParticleBackground from "../../components/ParticleBackground";
 import { Pid } from "../../utils";
 import { toast } from "react-toastify";
 import { useStakeContract } from "../../hooks/useContract";
@@ -75,18 +76,22 @@ const Home = () => {
     </Box>
   )
 
-  return (
-    <Box sx={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'space-between',
-      gap: '60px',
-      width: '100%'
-    }}>
+return (
+    <>
+      {/* 粒子背景 */}
+      <ParticleBackground />
+      
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        gap: '60px',
+        width: '100%'
+      }}>
       {/* 左侧内容 */}
       <Box sx={{ flex: 1, maxWidth: '600px' }}>
         <Typography sx={{ 
-          fontSize: '64px', 
+fontSize: '48px',
           fontWeight: 'bold', 
           lineHeight: 1.2,
           mb: '24px'
@@ -97,13 +102,13 @@ const Home = () => {
         <Typography sx={{ 
           fontSize: '18px', 
           color: 'rgba(255, 255, 255, 0.7)',
-          mb: '40px',
+mb: '32px',
           lineHeight: 1.6
         }}>
           Stake your MetaNode tokens and earn passive income with our secure and efficient staking platform.
         </Typography>
 
-        <Box display={'flex'} gap={'20px'} mb={'40px'}>
+<Box display={'flex'} gap={'20px'} mb={'32px'}>
           <Button sx={{
             background: 'linear-gradient(135deg, #5b9cff 0%, #4a7fd9 100%)',
             color: '#fff',
@@ -297,7 +302,8 @@ const Home = () => {
           </Box>
         </Box>
       </Box>
-    </Box>
+</Box>
+    </>
   )
 }
 
