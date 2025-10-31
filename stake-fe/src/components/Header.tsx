@@ -8,12 +8,8 @@ import { usePathname } from "next/navigation"
 
 const Header = () => {
   const Links = [
-    { name: 'Home', path: '/' },
     { name: 'Stake', path: '/' },
-    { name: 'Earn', path: '#' },
-    { name: 'NFTs', path: '#' },
-    { name: 'Governance', path: '#' },
-    { name: 'Docs', path: '#' }
+    { name: 'Withdraw', path: '/withdraw' },
   ]
   const pathname = usePathname()
   
@@ -22,7 +18,7 @@ const Header = () => {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-p: '16px 60px',
+      p: '16px 60px',
       background: 'rgba(10, 22, 40, 0.8)',
       backdropFilter: 'blur(10px)',
       borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
@@ -30,7 +26,7 @@ p: '16px 60px',
       zIndex: 10
     }}>
       <Box display={'flex'} alignItems={'center'} gap={'40px'}>
-<Typography sx={{ 
+        <Typography sx={{ 
           fontSize: '28px', 
           fontWeight: 'bold',
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #5b9cff 75%, #00d4ff 100%)',

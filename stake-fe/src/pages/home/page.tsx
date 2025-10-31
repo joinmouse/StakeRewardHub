@@ -5,9 +5,7 @@ import { formatUnits, parseUnits } from "viem";
 import { useAccount, useBalance, useWalletClient } from "wagmi";
 import { useCallback, useEffect, useState } from "react";
 
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import LoadingButton from '@mui/lab/LoadingButton';
-import ParticleBackground from "../../components/ParticleBackground";
 import { Pid } from "../../utils";
 import { toast } from "react-toastify";
 import { useStakeContract } from "../../hooks/useContract";
@@ -77,24 +75,25 @@ const Home = () => {
   )
 
 return (
-    <>
-      {/* 粒子背景 */}
-      <ParticleBackground />
-      
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        gap: '60px',
-        width: '100%'
-      }}>
+    <Box sx={{ 
+      minHeight: 'calc(100vh - 70px)',
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'space-between',
+      gap: '60px',
+      width: '100%',
+      p: '40px 60px',
+      position: 'relative',
+      zIndex: 1
+    }}>
       {/* 左侧内容 */}
       <Box sx={{ flex: 1, maxWidth: '600px' }}>
         <Typography sx={{ 
-fontSize: '48px',
+          fontSize: '48px',
           fontWeight: 'bold', 
           lineHeight: 1.2,
-          mb: '24px'
+          mb: '24px',
+          color: '#fff'
         }}>
           Earn Up to <span style={{ color: '#5b9cff' }}>14.5%</span> Rewards
         </Typography>
@@ -102,13 +101,13 @@ fontSize: '48px',
         <Typography sx={{ 
           fontSize: '18px', 
           color: 'rgba(255, 255, 255, 0.7)',
-mb: '32px',
+          mb: '32px',
           lineHeight: 1.6
         }}>
           Stake your MetaNode tokens and earn passive income with our secure and efficient staking platform.
         </Typography>
 
-<Box display={'flex'} gap={'20px'} mb={'32px'}>
+        <Box display={'flex'} gap={'20px'} mb={'32px'}>
           <Button sx={{
             background: 'linear-gradient(135deg, #5b9cff 0%, #4a7fd9 100%)',
             color: '#fff',
@@ -175,7 +174,7 @@ mb: '32px',
           backdropFilter: 'blur(10px)'
         }}>
           <Box display={'flex'} justifyContent={'space-between'} alignItems={'center'} mb={'24px'}>
-            <Typography sx={{ fontSize: '24px', fontWeight: 'bold' }}>
+            <Typography sx={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>
               Current Staking Stats
             </Typography>
             <Box sx={{
@@ -274,36 +273,33 @@ mb: '32px',
               Balance: {balance?.formatted || '0'} ETH
             </Typography>
             
+            
             <Box mt={'20px'}>
-              {!isConnected ? (
-                <ConnectButton />
-              ) : (
-                <LoadingButton 
-                  fullWidth
-                  loading={loading}
-                  onClick={handleStake}
-                  sx={{
-                    background: 'linear-gradient(135deg, #5b9cff 0%, #4a7fd9 100%)',
-                    color: '#fff',
-                    py: '14px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    borderRadius: '12px',
-                    textTransform: 'none',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #4a8bef 0%, #3968c9 100%)',
-                    }
-                  }}
-                >
-                  Stake Now
-                </LoadingButton>
-              )}
+              <LoadingButton 
+                fullWidth
+                disabled={!isConnected}
+                loading={loading}
+                onClick={handleStake}
+                sx={{
+                  background: 'linear-gradient(135deg, #5b9cff 0%, #4a7fd9 100%)',
+                  color: '#fff',
+                  py: '14px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  borderRadius: '12px',
+                  textTransform: 'none',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #4a8bef 0%, #3968c9 100%)',
+                  }
+                }}
+              >
+                {!isConnected ? 'Connect Wallet First' : 'Stake Now'}
+              </LoadingButton>
             </Box>
           </Box>
         </Box>
       </Box>
-</Box>
-    </>
+    </Box>
   )
 }
 

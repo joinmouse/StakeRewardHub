@@ -1,16 +1,14 @@
 import { Box, Grid, TextField, Typography } from "@mui/material";
-import { NextPage } from "next";
-import { useStakeContract } from "../../hooks/useContract";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pid } from "../../utils";
-import { useAccount, useWalletClient } from "wagmi";
 import { formatUnits, parseUnits, zeroAddress } from "viem";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { LoadingButton } from "@mui/lab";
-import { waitForTransactionReceipt } from "viem/actions";
-import { toast } from "react-toastify";
-import Header from "../../components/Header";
+import { useAccount, useWalletClient } from "wagmi";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { LoadingButton } from "@mui/lab";
+import { NextPage } from "next";
+import { Pid } from "../../utils";
+import { toast } from "react-toastify";
+import { useStakeContract } from "../../hooks/useContract";
+import { waitForTransactionReceipt } from "viem/actions";
 
 export type UserStakeData = {
   staked: string,
@@ -88,22 +86,44 @@ const Withdraw: NextPage = () => {
   }
 
   return (
-    <>
-      <Box display={'flex'} flexDirection={'column'} alignItems={'center'} width={'100%'}>
-        <Typography sx={{ fontSize: '30px', fontWeight: 'bold' }}>MetaNode  Stake</Typography>
-        <Typography sx={{}}>Stake ETH to earn tokens.</Typography>
-        <Box sx={{ border: '1px solid #eee', borderRadius: '12px', p: '20px', width: '600px', mt: '30px' }}>
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      p: '40px 20px',
+      minHeight: 'calc(100vh - 70px)',
+      position: 'relative',
+      zIndex: 1
+    }}>
+      <Box display={'flex'} flexDirection={'column'} alignItems={'center'} width={'100%'}
+      >
+        <Typography sx={{ fontSize: '30px', fontWeight: 'bold', mb: 2, color: '#fff' }}>MetaNode  Stake</Typography>
+        <Typography sx={{ mb: 4, color: 'rgba(255, 255, 255, 0.7)'}}>Stake ETH to earn tokens.</Typography>
+        <Box sx={{ 
+          border: '1px solid rgba(255, 255, 255, 0.2)', 
+          borderRadius: '12px', 
+          p: '20px', 
+          width: '600px', 
+          mt: '20px',
+          background: 'rgba(15, 30, 50, 0.6)',
+          backdropFilter: 'blur(10px)'
+        }}
+        >
           <Grid container sx={{
             mb: '60px',
             '& .title': {
               fontSize: '15px',
-              mb: '5px'
+              mb: '5px',
+              color: 'rgba(255, 255, 255, 0.6)'
             },
             '& .val': {
               fontSize: '18px',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              color: '#fff'
             }
-          }}>
+          }}
+          >
             <Grid item xs={4}>
               <Box display={'flex'} alignItems={'center'} flexDirection={'column'}>
                 <Box className='title'>Staked Amount: </Box>
@@ -115,30 +135,81 @@ const Withdraw: NextPage = () => {
                 <Box className='title'>Available to withdraw </Box>
                 <Box className='val'>{userData.withdrawable} ETH</Box>
               </Box>
-            </Grid><Grid item xs={4}>
+            </Grid>
+            <Grid item xs={4}>
               <Box display={'flex'} alignItems={'center'} flexDirection={'column'}>
                 <Box className='title'>Pending Withdraw: </Box>
                 <Box className='val'>{userData.withdrawPending} ETH</Box>
               </Box>
             </Grid>
           </Grid>
-          <Box sx={{ fontSize: '20px', mb: '10px' }}>Unstake</Box>
-          <TextField onChange={(e) => {
-            setAmount(e.target.value)
-          }} sx={{ minWidth: '300px' }} label="Amount" variant="outlined" />
+          <Box sx={{ fontSize: '20px', mb: '10px', color: '#fff' }}>Unstake</Box>
+          <TextField 
+            onChange={(e) => {
+              setAmount(e.target.value)
+            }} 
+            sx={{ 
+              minWidth: '300px',
+              '& .MuiOutlinedInput-root': {
+                color: '#fff',
+                '& fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#5b9cff',
+                }
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#5b9cff',
+              }
+            }} 
+            label="Amount" 
+            variant="outlined" 
+          />
+          
           <Box mt='20px'>
-            {
-              !isConnected ? <ConnectButton /> : <LoadingButton variant='contained' loading={unstakeLoading} onClick={handleUnStake}>UnStake</LoadingButton>
-            }
+            <LoadingButton 
+              variant='contained' 
+              disabled={!isConnected}
+              loading={unstakeLoading} 
+              onClick={handleUnStake}
+              sx={{
+                background: 'linear-gradient(135deg, #5b9cff 0%, #4a7fd9 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #4a8bef 0%, #3968c9 100%)',
+                }
+              }}
+            >
+              {!isConnected ? 'Connect Wallet First' : 'UnStake'}
+            </LoadingButton>
           </Box>
-          <Box sx={{ fontSize: '20px', mb: '10px', mt: '40px' }}>Withdraw</Box>
-          <Box> Ready Amount: {userData.withdrawable} </Box>
-          <Typography fontSize={'14px'} color={'#888'}>After unstaking, you need to wait 20 minutes to withdraw.</Typography>
-          <LoadingButton sx={{ mt: '20px' }} disabled={!isWithdrawable} variant='contained' loading={withdrawLoading} onClick={handleWithdraw}>Withdraw</LoadingButton>
+          <Box sx={{ fontSize: '20px', mb: '10px', mt: '40px', color: '#fff' }}>Withdraw</Box>
+          <Box sx={{ color: 'rgba(255, 255, 255, 0.8)' }}> Ready Amount: {userData.withdrawable} </Box>
+          <Typography fontSize={'14px'} color={'rgba(255, 255, 255, 0.6)'}>After unstaking, you need to wait 20 minutes to withdraw.</Typography>
+          <LoadingButton 
+            sx={{ 
+              mt: '20px',
+              background: 'linear-gradient(135deg, #f59e42 0%, #e8873d 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #e58d32 0%, #d8772d 100%)',
+              }
+            }} 
+            disabled={!isWithdrawable} 
+            variant='contained' 
+            loading={withdrawLoading} 
+            onClick={handleWithdraw}
+          >
+            Withdraw
+          </LoadingButton>
         </Box>
       </Box>
-    </>
-
+    </Box>
   )
 }
 
