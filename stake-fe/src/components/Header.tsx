@@ -46,15 +46,21 @@ p: '16px 60px',
             '50%': { backgroundPosition: '100% 50%' },
             '100%': { backgroundPosition: '0% 50%' }
           }
-        }}>
+        }}
+        >
           MetaNode
-          <span sx={{ 
-            color: '#ffffff',
-            textShadow: '0 0 20px rgba(255, 255, 255, 0.8)',
-            ml: 1
-          }}>
+          <Typography 
+            component="span"
+            sx={{ 
+              color: '#ffffff',
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.8)',
+              ml: 1,
+              fontSize: 'inherit',
+              fontWeight: 'inherit'
+            }}
+          >
             Stake
-          </span>
+          </Typography>
         </Typography>
         
         <Box display={'flex'} gap={'30px'}>
