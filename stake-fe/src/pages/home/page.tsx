@@ -95,7 +95,7 @@ return (
           mb: '24px',
           color: '#fff'
         }}>
-          Earn Up to <span style={{ color: '#5b9cff' }}>14.5%</span> Rewards
+          Earn Up to <span style={{ color: '#5b9cff' }}>7.46%</span> Rewards
         </Typography>
         
         <Typography sx={{ 
@@ -199,7 +199,7 @@ return (
             />
             <StatCard 
               title="Annual Reward Rate" 
-              value="14.5%"
+              value="7.46%"
               subtitle="0.8% from last week"
             />
           </Box>
