@@ -29,7 +29,8 @@ const Home = () => {
     try {
       setLoading(true)
       const tx = await stakeContract.write.depositETH([], { value: parseUnits(amount, 18) })
-      const res = await waitForTransactionReceipt(data, { hash: tx })
+      await waitForTransactionReceipt(data, { hash: tx })
+      console.log("tx", tx)
       toast.success('Transaction receipt !')
       setLoading(false)
       getStakedAmount()
