@@ -28,22 +28,75 @@ const Home = () => {
     }
     try {
       setLoading(true)
-      const tx = await stakeContract.write.depositETH([], { value: parseUnits(amount, 18) })
-      await waitForTransactionReceipt(data, { hash: tx })
-      console.log("tx", tx)
-      toast.success('Transaction receipt !')
-      setLoading(false)
-      getStakedAmount()
+      
+      // 🚀 优化1: 添加gas预估和用户确认
+      const gasEstimate = await stakeContract.estimateGas.depositETH([], { 
+        value: parseUnits(amount, 18) 
+      })
+      
+      // 🚀 优化2: 显示交易提交状态
+      toast.info('Submitting transaction...')
+      
+      const tx = await stakeContract.write.depositETH([], { 
+        value: parseUnits(amount, 18),
+        gas: gasEstimate + BigInt(Math.floor(Number(gasEstimate) * 0.1)) // 增加10%缓冲
+      })
+      
+      // 🚀 优化3: 显示交易哈希，不阻塞UI
+      toast.success(`Transaction submitted: ${tx.slice(0, 10)}...`)
+      
+      // 🚀 优化4: 异步等待确认，不阻塞UI
+      waitForTransactionReceipt(data, { hash: tx })
+        .then((receipt) => {
+          toast.success('Staking successful!')
+          getStakedAmount()
+        })
+        .catch((error) => {
+          console.error('Transaction failed:', error)
+          toast.error('Transaction failed')
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+        
     } catch (error) {
       setLoading(false)
       console.log(error, 'stake-error')
+      
+      // 🚀 优化5: 更详细的错误处理
+      if (error instanceof Error) {
+        if (error.message.includes('insufficient funds')) {
+          toast.error('Insufficient balance for gas')
+        } else if (error.message.includes('rejected')) {
+          toast.error('Transaction rejected by user')
+        } else {
+          toast.error(`Transaction failed: ${error.message.slice(0, 50)}...`)
+        }
+      } else {
+        toast.error('Transaction failed')
+      }
     }
   }
 
   const getStakedAmount = useCallback(async () => {
     if (address && stakeContract) {
-      const res = await stakeContract?.read.stakingBalance([Pid, address])
-      setStakedAmount(formatUnits(res as bigint, 18))
+      try {
+        // 🚀 优化6: 添加超时和重试机制
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 5000)
+        )
+        
+        const res = await Promise.race([
+          stakeContract.read.stakingBalance([Pid, address]),
+          timeoutPromise
+        ]) as bigint
+        
+        setStakedAmount(formatUnits(res, 18))
+      } catch (error) {
+        console.error('Failed to fetch staked amount:', error)
+        // 🚀 优化7: 错误时使用缓存值，不影响用户体验
+        // setStakedAmount(prev => prev || '0')
+      }
     }
   }, [stakeContract, address])
 

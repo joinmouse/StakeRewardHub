@@ -37,17 +37,26 @@ const Withdraw: NextPage = () => {
 
   const getUserData = async () => {
     if (!stakeContract || !address) return;
-    const staked = await stakeContract?.read.stakingBalance([Pid, address])
-    //@ts-ignore
-    const [requestAmount, pendingWithdrawAmount] = await stakeContract.read.withdrawAmount([Pid, address]);
-    const ava = Number(formatUnits(pendingWithdrawAmount, 18))
-    const p = Number(formatUnits(requestAmount, 18))
-    console.log({ p, ava })
-    setUserData({
-      staked: formatUnits(staked as bigint, 18),
-      withdrawPending: (p - ava).toFixed(4),
-      withdrawable: ava.toString()
-    })
+    try {
+      // 🚀 优化: 并行获取数据，减少网络请求次数
+      const [staked, withdrawData] = await Promise.all([
+        stakeContract.read.stakingBalance([Pid, address]),
+        stakeContract.read.withdrawAmount([Pid, address])
+      ])
+      
+      //@ts-ignore
+      const [requestAmount, pendingWithdrawAmount] = withdrawData;
+      const ava = Number(formatUnits(pendingWithdrawAmount, 18))
+      const p = Number(formatUnits(requestAmount, 18))
+      console.log({ p, ava })
+      setUserData({
+        staked: formatUnits(staked as bigint, 18),
+        withdrawPending: (p - ava).toFixed(4),
+        withdrawable: ava.toString()
+      })
+    } catch (error) {
+      console.error('Failed to fetch user data:', error)
+    }
   }
 
   useEffect(() => {
@@ -57,31 +66,105 @@ const Withdraw: NextPage = () => {
   }, [address, stakeContract])
   const handleUnStake = async () => {
     if (!stakeContract || !data) return;
+    if (parseFloat(amount) > parseFloat(userData.staked)) {
+      toast.error('Amount cannot be greater than staked balance')
+      return
+    }
     try {
       setUnstakeLoading(true)
-      const tx = await stakeContract.write.unstake([Pid, parseUnits(amount, 18)])
-      const res = await waitForTransactionReceipt(data, { hash: tx })
-      toast.success('Transaction receipt !')
-      setUnstakeLoading(false)
-      getUserData()
+      
+      // 🚀 优化: gas预估
+      const gasEstimate = await stakeContract.estimateGas.unstake([Pid, parseUnits(amount, 18)])
+      
+      toast.info('Submitting unstake request...')
+      
+      const tx = await stakeContract.write.unstake([Pid, parseUnits(amount, 18)], {
+        gas: gasEstimate + BigInt(Math.floor(Number(gasEstimate) * 0.1))
+      })
+      
+      toast.success(`Unstake submitted: ${tx.slice(0, 10)}...`)
+      
+      // 🚀 优化: 异步处理
+      waitForTransactionReceipt(data, { hash: tx })
+        .then((receipt) => {
+          toast.success('Unstake successful! Wait 20 minutes to withdraw.')
+          getUserData()
+        })
+        .catch((error) => {
+          console.error('Unstake failed:', error)
+          toast.error('Unstake failed')
+        })
+        .finally(() => {
+          setUnstakeLoading(false)
+        })
+        
     } catch (error) {
       setUnstakeLoading(false)
-      console.log(error, 'stake-error')
+      console.log(error, 'unstake-error')
+      
+      // 🚀 优化: 详细错误处理
+      if (error instanceof Error) {
+        if (error.message.includes('insufficient funds')) {
+          toast.error('Insufficient balance for gas')
+        } else if (error.message.includes('rejected')) {
+          toast.error('Transaction rejected by user')
+        } else {
+          toast.error(`Unstake failed: ${error.message.slice(0, 50)}...`)
+        }
+      } else {
+        toast.error('Unstake failed')
+      }
     }
   }
   const handleWithdraw = async () => {
     if (!stakeContract || !data) return;
     try {
       setWithdrawLoading(true)
-      const tx = await stakeContract.write.withdraw([Pid])
-      const res = await waitForTransactionReceipt(data, { hash: tx })
-      console.log(res, 'withdraw-res')
-      toast.success('Transaction receipt !')
-      setWithdrawLoading(false)
-      getUserData()
+      
+      // 🚀 优化: gas预估
+      const gasEstimate = await stakeContract.estimateGas.withdraw([Pid])
+      
+      toast.info('Processing withdrawal...')
+      
+      const tx = await stakeContract.write.withdraw([Pid], {
+        gas: gasEstimate + BigInt(Math.floor(Number(gasEstimate) * 0.1))
+      })
+      
+      toast.success(`Withdrawal submitted: ${tx.slice(0, 10)}...`)
+      
+      // 🚀 优化: 异步处理
+      waitForTransactionReceipt(data, { hash: tx })
+        .then((receipt) => {
+          console.log(receipt, 'withdraw-res')
+          toast.success('Withdrawal successful!')
+          getUserData()
+        })
+        .catch((error) => {
+          console.error('Withdrawal failed:', error)
+          toast.error('Withdrawal failed')
+        })
+        .finally(() => {
+          setWithdrawLoading(false)
+        })
+        
     } catch (error) {
       setWithdrawLoading(false)
-      console.log(error, 'stake-error')
+      console.log(error, 'withdraw-error')
+      
+      // 🚀 优化: 详细错误处理
+      if (error instanceof Error) {
+        if (error.message.includes('no locked')) {
+          toast.error('No funds available for withdrawal yet')
+        } else if (error.message.includes('insufficient funds')) {
+          toast.error('Insufficient balance for gas')
+        } else if (error.message.includes('rejected')) {
+          toast.error('Transaction rejected by user')
+        } else {
+          toast.error(`Withdrawal failed: ${error.message.slice(0, 50)}...`)
+        }
+      } else {
+        toast.error('Withdrawal failed')
+      }
     }
   }
 
