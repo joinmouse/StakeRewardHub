@@ -1,9 +1,10 @@
-import { useMemo } from "react"
-import { Abi, Address, WalletClient } from "viem"
+import { Abi, Address } from "viem"
 import { useChainId, useWalletClient } from "wagmi"
-import { getContract } from "../utils/contractHelper"
+
 import { StakeContractAddress } from "../utils/env"
+import { getContract } from "../utils/contractHelper"
 import { stakeAbi } from '../assets/abis/stake'
+import { useMemo } from "react"
 
 type UseContractOptions = {
   chainId?: number
@@ -39,5 +40,6 @@ export function useContract<TAbi extends Abi>(
 }
 
 export const useStakeContract = () => {
+  console.log("StakeContractAddress", StakeContractAddress)
   return useContract(StakeContractAddress, stakeAbi as Abi)
 }
