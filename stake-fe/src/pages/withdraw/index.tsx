@@ -74,7 +74,10 @@ const Withdraw: NextPage = () => {
       setUnstakeLoading(true)
       
       // 🚀 优化: gas预估
-      const gasEstimate = await stakeContract.estimateGas.unstake([Pid, parseUnits(amount, 18)])
+      const gasEstimate = await stakeContract.estimateGas.unstake(
+        [Pid, parseUnits(amount, 18)],
+        { account: stakeContract.account }
+      )
       
       toast.info('Submitting unstake request...')
       
@@ -122,7 +125,10 @@ const Withdraw: NextPage = () => {
       setWithdrawLoading(true)
       
       // 🚀 优化: gas预估
-      const gasEstimate = await stakeContract.estimateGas.withdraw([Pid])
+      const gasEstimate = await stakeContract.estimateGas.withdraw(
+        [Pid],
+        { account: stakeContract.account }
+      )
       
       toast.info('Processing withdrawal...')
       
